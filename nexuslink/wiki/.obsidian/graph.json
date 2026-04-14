@@ -1,0 +1,79 @@
+{
+  "collapse-filter": false,
+  "search": "",
+  "showTags": true,
+  "showAttachments": true,
+  "hideUnresolved": true,
+  "showOrphans": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "property:domain:physics",
+      "color": {
+        "a": 1,
+        "rgb": 4890841
+      }
+    },
+    {
+      "query": "property:domain:biology",
+      "color": {
+        "a": 1,
+        "rgb": 2601056
+      }
+    },
+    {
+      "query": "property:domain:chemistry",
+      "color": {
+        "a": 1,
+        "rgb": 15097378
+      }
+    },
+    {
+      "query": "property:domain:cs",
+      "color": {
+        "a": 1,
+        "rgb": 9322669
+      }
+    },
+    {
+      "query": "property:domain:medicine",
+      "color": {
+        "a": 1,
+        "rgb": 15158332
+      }
+    },
+    {
+      "query": "property:domain:materials_science",
+      "color": {
+        "a": 1,
+        "rgb": 1482885
+      }
+    },
+    {
+      "query": "property:domain:engineering",
+      "color": {
+        "a": 1,
+        "rgb": 9807270
+      }
+    },
+    {
+      "query": "property:domain:mathematics",
+      "color": {
+        "a": 1,
+        "rgb": 15803407
+      }
+    }
+  ],
+  "collapse-display": false,
+  "showArrow": true,
+  "textFadeMultiplier": 3,
+  "nodeSizeMultiplier": 5,
+  "lineSizeMultiplier": 5,
+  "collapse-forces": false,
+  "centerStrength": 0.6995841995842,
+  "repelStrength": 20,
+  "linkStrength": 1,
+  "linkDistance": 500,
+  "scale": 0.2606045961929805,
+  "close": false
+}

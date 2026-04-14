@@ -1,0 +1,12 @@
+# Normalize line endings to LF in repo, convert to OS-native on checkout
+* text=auto eol=lf
+
+# Force binary for files that should never be touched
+*.pdf binary
+*.pickle binary
+*.gpickle binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary

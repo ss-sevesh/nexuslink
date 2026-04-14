@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Generated / cached artifacts (can be rebuilt by pipeline)
+nexuslink/wiki/.cache/
+nexuslink/raw/store/chroma/
+nexuslink/raw/store/*.db
+
+# Large binary inputs (PDFs ingested by users — not source-controlled)
+*.pdf
+
+# Claude Code project state (conversations, memory — not source code)
+.claude/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Obsidian workspace state (local UI state, not content)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ruff / mypy caches
+.ruff_cache/
+.mypy_cache/
