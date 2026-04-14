@@ -39,9 +39,9 @@ Thumbs.db
 .vscode/
 
 # Obsidian workspace state (local UI state, not content)
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-.obsidian/cache
+**/.obsidian/workspace.json
+**/.obsidian/workspace-mobile.json
+**/.obsidian/cache
 
 # Pytest / coverage
 .pytest_cache/
