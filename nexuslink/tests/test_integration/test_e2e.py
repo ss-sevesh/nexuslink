@@ -110,8 +110,8 @@ class TestFullPipeline:
         # Set up a fake vault under tmp_path so nothing touches the real wiki/
         # ------------------------------------------------------------------
         vault = tmp_path / "wiki"
-        papers_dir = vault / "papers"
-        concepts_dir = vault / "concepts"
+        papers_dir = vault / "01-papers"
+        concepts_dir = vault / "02-concepts"
         hypotheses_dir = vault / "03-hypotheses"
         cache_dir = vault / ".cache"
         for d in (papers_dir, concepts_dir, hypotheses_dir, cache_dir):

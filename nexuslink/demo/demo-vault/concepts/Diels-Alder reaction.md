@@ -7,6 +7,7 @@ tags: []
 
 ## Definition
 
+Diels-Alder reaction adducts between furan and maleimide groups are key to self-healing.
 
 ## Related Concepts
 
@@ -19,3 +20,11 @@ tags: []
 ## Cross-Domain Bridges
 
 - [[homology-directed repair]] → extends
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```

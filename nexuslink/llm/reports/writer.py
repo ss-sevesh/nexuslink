@@ -96,11 +96,13 @@ class ReportWriter:
         )
 
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        md_path = _REPORTS_DIR / f"report_{timestamp}.md"
-        tex_path = _LATEX_DIR / f"report_{timestamp}.tex"
+        reports_dir = (vault_path / "04-reports") if vault_path else _REPORTS_DIR
+        latex_dir = reports_dir / "latex"
+        md_path = reports_dir / f"report_{timestamp}.md"
+        tex_path = latex_dir / f"report_{timestamp}.tex"
 
-        _REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        _LATEX_DIR.mkdir(parents=True, exist_ok=True)
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        latex_dir.mkdir(parents=True, exist_ok=True)
 
         await asyncio.gather(
             asyncio.to_thread(md_path.write_text, md_content, "utf-8"),
@@ -271,7 +273,7 @@ def _render_markdown_report(
         f"The knowledge graph contains **{stats['total_concepts']} concepts** "
         f"spanning **{stats['domains_covered']} domains** "
         f"with **{stats['total_bridges']} cross-domain bridges** detected.\n",
-        f"Domains covered: {', '.join(stats.get('domains', []))}\n",
+        f"Domains covered: {', '.join(f'[[{d}]]' for d in stats.get('domains', []))}\n",
         "---\n",
         "## Full Bibliography\n",
         "```bibtex",
@@ -428,24 +430,28 @@ def _add_frontmatter(
 
 
 def _validate_wikilinks(content: str, vault_path: Path) -> tuple[str, list[str]]:
-    """Log broken [[wikilinks]] that have no matching vault note.
+    """Strip [[wikilinks]] that have no matching vault note.
 
-    Returns *(content, broken_targets)* — content is unchanged; broken_targets
-    is a list of link targets with no corresponding .md file in the vault.
+    Returns *(cleaned_content, broken_targets)* — broken wikilinks are
+    replaced with plain text so they don't appear as ghost nodes in Obsidian.
     """
-    _SEARCH_DIRS = ("papers", "concepts", "03-hypotheses", "04-reports", "")
+    _SEARCH_DIRS = ("01-papers", "02-concepts", "03-hypotheses", "04-reports", "")
 
     broken: list[str] = []
-    for m in _WIKILINK_RE.finditer(content):
+
+    def _replace(m: re.Match) -> str:
         target = m.group(1).strip()
         found = any(
             (vault_path / subdir / f"{target}.md").exists()
             for subdir in _SEARCH_DIRS
         )
-        if not found:
-            broken.append(target)
+        if found:
+            return m.group(0)  # keep as-is
+        broken.append(target)
+        return target  # strip [[ ]] — leave plain text
 
-    return content, broken
+    cleaned = _WIKILINK_RE.sub(_replace, content)
+    return cleaned, broken
 
 
 # ---------------------------------------------------------------------------
@@ -468,12 +474,14 @@ def _build_stats(graph: KnowledgeGraph, pipeline_stats: dict) -> dict:
 
 
 def _tex(s: str) -> str:
-    """Escape LaTeX special characters.
+    """Escape LaTeX special characters and strip Obsidian [[wikilinks]].
 
-    Order: escape braces and other specials first, then replace backslash
-    last using a placeholder so the {} in \\textbackslash{} is never
-    re-escaped.
+    Order: strip wikilinks first, then escape specials, then restore backslash.
     """
+    import re as _re
+    # Strip [[wikilinks]] — keep the display text (or target if no pipe)
+    s = _re.sub(r'\[\[([^\]|]+)(?:\|([^\]]+))?\]\]', lambda m: m.group(2) or m.group(1), s)
+
     _PLACEHOLDER = "\x00BSLASH\x00"
     s = s.replace("\\", _PLACEHOLDER)
     for char, replacement in [

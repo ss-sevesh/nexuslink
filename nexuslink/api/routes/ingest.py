@@ -146,7 +146,7 @@ async def list_papers(
     if not (1 <= page_size <= 200):
         raise HTTPException(status_code=400, detail="page_size must be 1–200")
 
-    papers_dir = nx._vault / "papers"
+    papers_dir = nx._vault / "01-papers"
     md_files = sorted(papers_dir.glob("*.md")) if papers_dir.exists() else []
 
     summaries = await asyncio.gather(*[_parse_paper_summary(f) for f in md_files])

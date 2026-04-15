@@ -272,7 +272,7 @@ class TestRunIngestion:
         markdown = "# Great Paper\nAlice Smith, Bob Jones\n\nWe used CRISPR."
 
         # Redirect wiki output to tmp_path so we don't pollute the repo
-        wiki_papers = tmp_path / "wiki" / "papers"
+        wiki_papers = tmp_path / "wiki" / "01-papers"
         wiki_papers.mkdir(parents=True)
 
         with (

@@ -50,26 +50,29 @@ _SYS_REPORT = (
 # ===========================================================================
 
 _USER_GENERATION_SRC = """\
-## Example of an Ideal Cross-Domain Hypothesis
+## Output Structure (example only — do NOT reproduce this content)
 
-Bridge: gecko adhesion (biology, phenomenon) ←[analogous, similarity=0.87]→ Casimir effect (physics, phenomenon)
+The JSON below shows the required fields and format. The hypothesis content is fictional.
+Generate your own hypotheses solely from the bridges listed further below.
 
-Output:
 ```json
 [
   {
-    "statement": "If the van der Waals forces governing gecko seta adhesion (β-keratin nanostructures, ~10⁻¹⁰ N per seta) and the quantum Casimir effect arising from vacuum fluctuations at nanometre separations are both manifestations of electromagnetic zero-point energy, then synthetic surfaces with seta-density > 10⁸/cm² and tip radii < 5 nm will achieve room-temperature dry adhesion exceeding 100 kPa without applied voltage.",
-    "domains_spanned": ["biology", "physics", "materials_science"],
+    "statement": "If [specific quantitative finding from domain A] and [named mechanism from domain B], then [novel, measurable prediction distinct from either domain alone].",
+    "domains_spanned": ["domain_a", "domain_b"],
     "suggested_experiments": [
-      "Fabricate PDMS nanopillar arrays (tip radius 2–8 nm, density 10⁷–10⁹/cm²) via EBL; measure pull-off force with a calibrated AFM cantilever in high vacuum.",
-      "Compare measured Casimir force–distance curves on flat gold with Lifshitz theory; correlate with gecko seta pull-off energy density.",
-      "Deposit β-keratin-mimetic polymer brushes on nanopillar tips; test adhesion reversibility over 10 000 attach–detach cycles."
+      "Specific experiment with named technique and measurable outcome.",
+      "Second experiment with protocol and expected result.",
+      "Third experiment targeting the falsifiable prediction."
     ],
-    "confidence": 0.81,
-    "reasoning": "Both gecko adhesion and the Casimir effect arise from van der Waals / zero-point field interactions at the nanoscale. The quantitative overlap in force magnitudes and length scales suggests a unified design principle that neither materials scientists nor quantum physicists have yet exploited."
+    "bridge_index": 0,
+    "confidence": 0.75,
+    "reasoning": "Why the two domains connect mechanistically."
   }
 ]
 ```
+
+`bridge_index` is the 0-based index of the bridge in the list below that inspired this hypothesis.
 
 ---
 
@@ -142,14 +145,23 @@ Rate each dimension 1–10 using these anchors:
 **Impact (I):**
   1 = minor result; 5 = significant field advance; 10 = paradigm-shifting if confirmed
 
+**Mechanistic Depth (M):**
+  1 = vague analogy only; 5 = plausible mechanism described; 10 = precise molecular/physical mechanism with known intermediates
+
+**Falsifiability (Fs):**
+  1 = untestable or unfalsifiable; 5 = testable with significant effort; 10 = specific quantitative prediction with clear null hypothesis
+
 ## Output Format
 
-Respond with JSON only — no preamble, no explanation outside the JSON:
+Respond with JSON only — no preamble, no explanation outside the JSON.
+All scores are integers 1–10. Use the full range — do not anchor to example values.
 
 {
-  "novelty_score": 8,
-  "feasibility_score": 6,
-  "impact_score": 9,
+  "novelty_score": <int 1-10>,
+  "feasibility_score": <int 1-10>,
+  "impact_score": <int 1-10>,
+  "mechanistic_depth": <int 1-10>,
+  "falsifiability_score": <int 1-10>,
   "strengths": [
     "Strength 1",
     "Strength 2"
@@ -161,7 +173,7 @@ Respond with JSON only — no preamble, no explanation outside the JSON:
   "missing_evidence": [
     "Evidence that would significantly strengthen this hypothesis"
   ],
-  "verdict": "promising",
+  "verdict": "promising | speculative | weak",
   "critique_summary": "2–3 sentence assessment of the hypothesis's scientific merit and most promising direction."
 }
 """

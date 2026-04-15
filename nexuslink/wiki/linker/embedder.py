@@ -1,10 +1,15 @@
-"""Concept embedder: maps ExtractedEntity objects to dense vectors via sentence-transformers."""
+"""Concept embedder: maps ExtractedEntity objects to dense vectors.
+
+Uses Ollama (nomic-embed-text) when available for better cross-domain semantic
+understanding; falls back to sentence-transformers (all-MiniLM-L6-v2).
+"""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import asyncio
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -21,7 +26,37 @@ _CACHE_DIR = _WIKI_DIR / ".cache"
 _EMB_PATH = _CACHE_DIR / "embeddings.npz"
 _IDX_PATH = _CACHE_DIR / "embeddings_index.json"
 
-_DEFAULT_MODEL = "all-MiniLM-L6-v2"
+_DEFAULT_MODEL = "all-mpnet-base-v2"
+_OLLAMA_EMBED_MODEL = "nomic-embed-text"
+
+
+def _ollama_available() -> bool:
+    """Return True if Ollama is reachable and nomic-embed-text is installed."""
+    import urllib.request
+    host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    try:
+        with urllib.request.urlopen(f"{host}/api/tags", timeout=2) as resp:
+            data = json.loads(resp.read())
+            return any(_OLLAMA_EMBED_MODEL in m["name"] for m in data.get("models", []))
+    except Exception:
+        return False
+
+
+def _ollama_embed(texts: list[str]) -> list[np.ndarray]:
+    """Call Ollama embedding API; returns list of normalised float32 arrays."""
+    import urllib.request, urllib.error
+    host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    url = f"{host}/api/embed"
+    results = []
+    for text in texts:
+        body = json.dumps({"model": _OLLAMA_EMBED_MODEL, "input": text}).encode()
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read())
+        vec = np.array(data["embeddings"][0], dtype=np.float32)
+        norm = np.linalg.norm(vec)
+        results.append(vec / norm if norm > 0 else vec)
+    return results
 
 
 class ConceptEmbedder:
@@ -30,6 +65,11 @@ class ConceptEmbedder:
     def __init__(self, model_name: str = _DEFAULT_MODEL) -> None:
         self._model_name = model_name
         self._model: SentenceTransformer | None = None
+        self._use_ollama: bool = False  # nomic-embed-text collapses short concept names
+        if self._use_ollama:
+            logger.info("ConceptEmbedder using Ollama/{} for embeddings", _OLLAMA_EMBED_MODEL)
+        else:
+            logger.info("ConceptEmbedder using sentence-transformers/{}", model_name)
         # hash(text) -> np.ndarray
         self._cache: dict[str, np.ndarray] = {}
         # hash -> original text (for persistence round-trips)
@@ -46,7 +86,10 @@ class ConceptEmbedder:
         h = _sha(text)
         if h not in self._cache:
             logger.debug("Embedding entity {!r}", entity.name)
-            emb = self._get_model().encode(text, normalize_embeddings=True)
+            if getattr(self, "_use_ollama", False):
+                emb = _ollama_embed([text])[0]
+            else:
+                emb = self._get_model().encode(text, normalize_embeddings=True)
             self._cache[h] = emb
             self._key_index[h] = text
         return self._cache[h]
@@ -72,9 +115,12 @@ class ConceptEmbedder:
 
         if pending_texts:
             logger.debug("Batch-embedding {} new entities", len(pending_texts))
-            embeddings = self._get_model().encode(
-                pending_texts, normalize_embeddings=True, batch_size=32, show_progress_bar=False
-            )
+            if getattr(self, "_use_ollama", False):
+                embeddings = _ollama_embed(pending_texts)
+            else:
+                embeddings = list(self._get_model().encode(
+                    pending_texts, normalize_embeddings=True, batch_size=32, show_progress_bar=False
+                ))
             for (name, h, text), emb in zip(pending_meta, embeddings):
                 self._cache[h] = emb
                 self._key_index[h] = text

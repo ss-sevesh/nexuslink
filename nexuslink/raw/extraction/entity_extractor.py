@@ -145,6 +145,14 @@ _BLOCKLIST: frozenset[str] = frozenset({
     # Academic venue abbreviations — not scientific concepts
     "ACL", "NAACL", "EMNLP", "CoRR", "USENIX", "NeurIPS", "ICML",
     "ICLR", "CVPR", "ICCV", "ECCV", "AAAI", "IJCAI", "SIGIR",
+    "ACM", "IEEE", "ASRU", "ASONAM", "Interspeech",
+    # Tech companies / cloud platforms
+    "AMD", "AWS", "Google", "Microsoft", "Apple", "Meta", "Amazon",
+    "OpenAI", "Anthropic", "DeepMind", "NVIDIA",
+    # Universities / government agencies (not concepts)
+    "MIT", "CMU", "MSR", "NSF", "NIH", "DOE", "DARPA", "IARPA",
+    # Generic acronyms that are not scientific concepts
+    "API", "AIE", "ALUM", "AUC", "ASR", "ARC", "ARO",
     # Common researcher surnames captured by spaCy ORG label
     # (Pattern: single Title-Case word, not a known concept)
     # These are added per-domain as they appear — the fix is in _is_valid_entity
@@ -162,6 +170,7 @@ _NOISE_PATTERNS = re.compile(
     r"|^Figure\s+\d"                        # Figure 1, etc.
     r"|^Section\s+\d"                       # Section 3.2, etc.
     r"|@"                                   # email addresses
+    r"|^https?://"                          # URLs
     r"|^[=|`>\[<~\u201c\u2018\"\']"        # starts with markup or quote chars
     r"|\|\|"                                # double pipe
     r"|et al"                               # citation fragments
@@ -171,8 +180,12 @@ _NOISE_PATTERNS = re.compile(
     r"|[×÷±∑∏∂∫√|\u2212\u00b1]"            # math operators, pipe, unicode minus/plus
     r"|^(Conference|Proceedings|Journal|Workshop|Symposium|Annual|International)\s"
                                             # academic venue names
+    r"|^(ACM|IEEE|AAAI|ICLR|NeurIPS|ICML|CVPR|ECCV|ICCV|NAACL|EMNLP|ACL)\s"
+                                            # venue abbreviations as prefixes
     r"|\b(University|Institute|Laboratory|College|Church|Brain Team|Research Lab)\b"
                                             # institutional names
+    r"|\b(Press|Publishing|Publisher|Publishers)\b"
+                                            # publisher names
     r"|\b(Conference on|Processing Systems|Technology Conference)\b"
                                             # venue/journal name fragments
     r"|,\s*(Inc\.|Ltd\.|Corp\.|LLC)"        # company suffixes
@@ -181,27 +194,81 @@ _NOISE_PATTERNS = re.compile(
     r"|\.\w{2,4}$"                          # file extensions / URLs (.com, .org)
     r"|^[A-Z]\.\s"                          # initial + period (e.g. "D. Switch")
     r"|\[\]"                                # square brackets (table/code artifacts)
+    r"|\[[\d,\s]+\]"                        # citation markers like [1] [1,2]
     r"|\+\s"                                # arithmetic + operator
     r"|,\s*[A-Z]"                           # comma before capital (list fragments)
     r"|'\d{2}\b"                            # apostrophe+year: WMT'16
     r"|\bto\s+[A-Z][a-z]"                  # "to Tensorflow" — description fragment
     r"|\w*[^\x00-\x7F]\w*\s+[A-Z][a-z]+"  # non-ASCII word followed by surname
+    r"|^arXiv"                              # arXiv prefixes
+    r"|^abs/"                               # arXiv abs/ paths
+    r"|^([A-Z]\.){2,}"                      # dotted abbreviations: A.G.B., U.S.A.
+    r"|^[A-Z]+-[A-Z]\d+$"                  # benchmark splits: ANLI-A1, WMT-DE2
+    r"|^[A-Z]\d+[a-z]*$"                    # single-letter + number codes: A11b (NOT Cas9)
+    r"|^Theorem\s+\d"                       # Theorem 4.2, Theorem 1
+    r"|^Lemma\s+\d"                         # Lemma 3
+    r"|^Corollary\s+\d"                     # Corollary 1
+    r"|^[A-Z]{8,}$"                         # pure all-caps junk >= 8 chars: COUNTERFACT
 )
 
 # Person-name patterns (various formats that appear in paper author/citation sections)
 _PERSON_RE = re.compile(
-    r"^[A-Z][a-z]+\s+[A-Z][a-z]+$"              # "John Smith"
-    r"|^[A-Z][a-z]+\s+[A-Z]+\s+[A-Z][a-z]+$"    # "Quoc VV Le", "J. R. Jones"
-    r"|^[A-Z]\.\s+[A-Z][a-z]+"                   # "J. Smith" (with period)
+    r"^[A-Z][a-z]+\s+[A-Z][a-z]+$"                     # "John Smith"
+    r"|^[A-Z][a-z]+\s+[A-Z]+\s+[A-Z][a-z]+$"           # "Quoc VV Le"
+    r"|^[A-Z]\.\s+[A-Z][a-z]+"                          # "J. Smith"
+    r"|^[A-Z][a-z]+-[A-Z][a-z]+\s+[A-Z][a-z]+$"        # "Jean-Baptiste Cordonnier"
+    r"|^[A-Z][a-z]+-[A-Z][a-z]+\s+[A-Z][a-z]+-[A-Z][a-z]+$"  # "Marc-Andre Foo-Bar"
+    r"|^[A-Z][a-z]+[A-Z][a-z]+\s+[A-Z][a-z]+$"         # "SouYoung Jin"
+    r"|^[A-Z][a-z]+\s+and$"                             # "Howard and" (author + conjunction)
+    r"|^[A-Z][a-z]+-[A-Z][a-z]+$"                       # "Foo-Bar" hyphenated surnames
 )
 
 # Two-word technical terms that superficially look like person names
 _KNOWN_TWO_WORD_CONCEPTS: frozenset[str] = frozenset({
+    # ML / NLP methods
     "Deep Learning", "Machine Learning", "Transfer Learning",
     "Switch Transformer", "Mesh Tensorflow", "Natural Language",
     "Neural Network", "Language Model", "Sparse Transformer",
     "Few-Shot", "Zero-Shot", "Common Crawl", "Winograd Schema",
     "Byte Pair", "Attention Mechanism", "Gradient Descent",
+    "Multi-Head Attention", "Self-Attention", "Cross-Attention",
+    "Feed-Forward Network", "Layer Normalization", "Batch Normalization",
+    "Residual Connection", "Positional Encoding", "Position Encoding",
+    "Encoder-Decoder", "Mixture-of-Experts", "Long Short-Term Memory",
+    "Recurrent Neural Network", "Convolutional Neural Network",
+    "Graph Neural Network", "Variational Autoencoder",
+    "Generative Adversarial Network", "Diffusion Model",
+    "Knowledge Distillation", "Model Pruning",
+    # Quantum physics / condensed matter
+    "Quantum Sensing", "Quantum Entanglement", "Quantum Computing",
+    "Quantum Annealing", "Spin Resonance", "Spin-Orbit Coupling",
+    "Paramagnetic Defect", "Hexagonal Boron Nitride",
+    "Topological Insulator", "Bose-Einstein Condensate",
+    "Casimir Effect", "Anderson Localization",
+    "Quantum Hall", "Quantum Dot", "Quantum Error",
+    "Van der Waals", "2D Material",
+    # Biology / biochemistry
+    "Protein Structure", "Protein Folding", "Amino Acid",
+    "Gene Expression", "Gene Regulation", "Genome Editing",
+    "Cas9", "Guide RNA", "Adaptive Immunity", "Bacterial Immunity",
+    "Horizontal Gene Transfer", "RNA Interference", "Alternative Splicing",
+    "Epigenetic Regulation", "Synaptic Plasticity", "Hebbian Learning",
+    "Dendritic Computation", "Predictive Coding", "Credit Assignment",
+    "Spiking Neuron", "Neural Circuit", "Biological Neural",
+    "Long-Term Potentiation", "Action Potential",
+    "Molecular Dynamics", "Evolutionary Coupling", "Residue Contact",
+    # Ecology / earth systems
+    "Climate Change", "Biodiversity Loss", "Tipping Points",
+    "Planetary Boundaries", "Feedback Loop", "Earth System",
+    "Nitrogen Cycle", "Carbon Cycle", "Ecosystem Services",
+    "Resilience Theory",
+    # Chemistry / materials
+    "Hydrogen Bond", "Covalent Bond", "Ionic Bond",
+    "Reaction Kinetics", "Catalytic Mechanism",
+    # Cross-domain
+    "Phase Transition", "Scaling Law", "Information Bottleneck",
+    "Complex System", "Network Theory", "Self-Organization",
+    "Bifurcation Theory", "Chaos Theory",
 })
 
 
@@ -223,8 +290,8 @@ def _is_valid_entity(name: str) -> bool:
     if not re.search(r"[a-zA-Z]", name):
         return False
 
-    # Reject names starting with a digit (metric values, table numbers, etc.)
-    if name[0].isdigit():
+    # Reject names starting with a digit unless they use a dimensional prefix (2D, 3D, N6-)
+    if name[0].isdigit() and not re.match(r'^\d+[A-Za-z]', name):
         return False
 
     # Explicit blocklist — case-insensitive so "Float32" == "float32" both blocked
@@ -233,6 +300,18 @@ def _is_valid_entity(name: str) -> bool:
 
     # Noise patterns
     if _NOISE_PATTERNS.search(name):
+        return False
+
+    # Reject truncated extractions — PDF line-break artifacts
+    if name.endswith("-") or name.endswith("["):
+        return False
+
+    # Reject names with citation markers embedded: "Yang[1", "Smith[2,3]"
+    if re.search(r"\[\d", name):
+        return False
+
+    # Reject pure lowercase single words (math variables: "f", "x", "alpha")
+    if name.islower() and " " not in name and len(name) < 6:
         return False
 
     # Reject unbalanced parentheses (malformed extractions like "Mixtureof-Experts (MoE")
@@ -341,6 +420,40 @@ def _dedup_key(name: str) -> str:
     return norm
 
 
+_CITATION_RE = re.compile(
+    r"^\s*[A-Z][^\.\?!]{0,120}\.\s*$"          # single sentence ending with period
+)
+_VERB_RE = re.compile(
+    r"\b(is|are|was|were|can|enable|allow|use|provide|show|demonstrate|"
+    r"perform|achieve|learn|train|predict|encode|represent|reduce|improve|"
+    r"increase|decrease|apply|extend|propose|present|introduce)\b",
+    re.IGNORECASE,
+)
+
+
+def _best_context(sentence: str) -> str:
+    """Return *sentence* if it reads like a real descriptive sentence, else ''.
+
+    Filters out citation titles and short captions that get picked up as
+    context but don't actually define or describe the entity.
+
+    A sentence is kept when it:
+    - is at least 40 characters long
+    - contains at least one verb from the scientific vocabulary above
+    - does not look like a bare bibliography entry (Author, Year. Title.)
+    """
+    s = sentence.strip()
+    if len(s) < 40:
+        return ""
+    if not _VERB_RE.search(s):
+        return ""
+    # Reject lines that are just a capitalised noun phrase ending with a period
+    # and contain no comma or subordinate clause — typical of bibliography titles
+    if re.match(r'^[A-Z][a-zA-Z\s\-]{5,80}\.$', s) and "," not in s:
+        return ""
+    return s
+
+
 def extract_entities(doc: RawDocument, nlp: Any = None) -> list[ExtractedEntity]:
     """Extract scientific entities from *doc*.
 
@@ -395,7 +508,7 @@ def extract_entities(doc: RawDocument, nlp: Any = None) -> list[ExtractedEntity]
                 name=name,
                 entity_type=entity_type,  # type: ignore[arg-type]
                 source_doc_id=doc.id,
-                context_sentence=ent.sent.text.strip(),
+                context_sentence=_best_context(ent.sent.text.strip()),
             )
 
     # --- PhraseMatcher-based entities ---
@@ -413,7 +526,7 @@ def extract_entities(doc: RawDocument, nlp: Any = None) -> list[ExtractedEntity]
                 name=name,
                 entity_type=entity_type,  # type: ignore[arg-type]
                 source_doc_id=doc.id,
-                context_sentence=span.sent.text.strip(),
+                context_sentence=_best_context(span.sent.text.strip()),
             )
 
     result = list(entities.values())

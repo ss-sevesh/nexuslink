@@ -251,7 +251,7 @@ async def setup_vault() -> None:
         _DEMO_VAULT.mkdir(parents=True, exist_ok=True)
 
         # Sub-directories expected by graph builder & export
-        for sub in ("papers", "concepts", "hypotheses", "reports", "templates"):
+        for sub in ("01-papers", "02-concepts", "03-hypotheses", "04-reports", "templates"):
             (_DEMO_VAULT / sub).mkdir(exist_ok=True)
 
         # Copy .obsidian config if it exists
@@ -352,7 +352,7 @@ def _safe_filename(s: str) -> str:
 async def write_paper_notes(docs, entities_by_doc: dict) -> None:
     """Write one Paper.md per document into demo-vault/papers/."""
     step("[NOTE]", "Writing Paper.md notes", "demo-vault/papers/")
-    papers_dir = _DEMO_VAULT / "papers"
+    papers_dir = _DEMO_VAULT / "01-papers"
     papers_dir.mkdir(exist_ok=True)
 
     try:
@@ -390,7 +390,7 @@ tags: {domain_tags}
 
 {entity_links}
 
-<!-- Concept/method/material notes linked via [[wikilinks]] above -->
+<!-- entities linked as wikilinks above -->
 
 ## References
 
@@ -412,7 +412,7 @@ tags: {domain_tags}
 async def write_concept_notes(docs, entities_by_doc: dict) -> None:
     """Write one Concept.md per unique entity, with [[wikilinks]] back to papers."""
     step("[CON]", "Writing Concept.md notes", "demo-vault/concepts/")
-    concepts_dir = _DEMO_VAULT / "concepts"
+    concepts_dir = _DEMO_VAULT / "02-concepts"
     concepts_dir.mkdir(exist_ok=True)
 
     # Aggregate: entity_name → {type, papers, domains, context}
@@ -586,7 +586,7 @@ async def build_knowledge_graph(docs, entities_by_doc: dict, bridges):
            f"{kg.node_count('concept')} concept nodes, "
            f"{kg.edge_count()} edges")
 
-        # Export concept notes — builder writes to wiki/concepts/ by default;
+        # Export concept notes — builder writes to wiki/02-concepts/ by default;
         # we monkey-patch the path to point at demo-vault/concepts/ instead.
         import nexuslink.wiki.graph.builder as _builder_mod
         original_wiki_dir = _builder_mod._WIKI_DIR
@@ -633,24 +633,35 @@ async def run_llm_pipeline(kg, bridges) -> bool:
     else:
         step("[LLM]", "Running LLM hypothesis generation", "ANTHROPIC_API_KEY detected")
     try:
+        import nexuslink.llm.hypothesis.generator as _gen_mod
         from nexuslink.llm.hypothesis.generator import HypothesisGenerator
         from nexuslink.llm.scoring.ranker import HypothesisRanker
         from nexuslink.llm.reports.writer import ReportWriter
         from nexuslink.wiki.citations.manager import CitationManager
 
-        generator = HypothesisGenerator()
-        ranker    = HypothesisRanker()
-        writer    = ReportWriter()
-        citation_manager = CitationManager()
+        # Redirect all LLM output to demo-vault so every note lives in one vault
+        _orig_hyp_dir = _gen_mod._HYPOTHESES_DIR
+        _demo_hyp_dir = _DEMO_VAULT / "03-hypotheses"
+        _demo_hyp_dir.mkdir(parents=True, exist_ok=True)
+        _gen_mod._HYPOTHESES_DIR = _demo_hyp_dir
 
-        hypotheses = await generator.generate(bridges[:5], kg)
-        ok(f"  Generated {len(hypotheses)} hypotheses")
+        try:
+            generator = HypothesisGenerator()
+            ranker    = HypothesisRanker()
+            writer    = ReportWriter()
+            citation_manager = CitationManager()
 
-        scored = await ranker.rank_all(hypotheses)
-        ok(f"  Ranked {len(scored)} hypotheses by novelty × feasibility × impact")
+            hypotheses = await generator.generate(bridges[:5], kg)
+            ok(f"  Generated {len(hypotheses)} hypotheses")
 
-        report_path = await writer.generate_report(scored, kg, citation_manager, vault_path=_DEMO_VAULT)
-        ok(f"  Report written → {report_path}")
+            scored = await ranker.rank_all(hypotheses)
+            ok(f"  Ranked {len(scored)} hypotheses by novelty × feasibility × impact")
+
+            report_path = await writer.generate_report(scored, kg, citation_manager, vault_path=_DEMO_VAULT)
+            ok(f"  Report written → {report_path}")
+        finally:
+            _gen_mod._HYPOTHESES_DIR = _orig_hyp_dir
+
         return True
     except Exception as exc:
         warn(f"LLM pipeline failed ({exc}); falling back to mock hypothesis")
@@ -665,8 +676,8 @@ async def write_mock_hypothesis(bridges) -> None:
     """Copy pre-written mock hypothesis into demo-vault/."""
     step("[HYP]", "Writing mock hypothesis", "(no API key - showing template output)")
 
-    hyp_dir  = _DEMO_VAULT / "hypotheses"
-    rep_dir  = _DEMO_VAULT / "reports"
+    hyp_dir  = _DEMO_VAULT / "03-hypotheses"
+    rep_dir  = _DEMO_VAULT / "04-reports"
     hyp_dir.mkdir(exist_ok=True)
     rep_dir.mkdir(exist_ok=True)
 

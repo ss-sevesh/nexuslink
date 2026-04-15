@@ -29,6 +29,7 @@ dependencies = [
     "python-multipart",
     "uvicorn[standard]",
     "rich",
+    "mcp>=1.27.0",
 ]
 
 [project.scripts]

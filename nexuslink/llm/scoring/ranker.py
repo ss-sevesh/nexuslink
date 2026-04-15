@@ -39,11 +39,13 @@ class ScoredHypothesis(GeneratedHypothesis):
     @computed_field  # type: ignore[misc]
     @property
     def composite_score(self) -> float:
-        """Weighted composite: 40 % novelty + 30 % impact + 30 % feasibility."""
+        """Weighted composite: 30% novelty + 25% impact + 20% feasibility + 15% mechanistic_depth + 10% falsifiability."""
         return (
-            0.4 * self.novelty_score
-            + 0.3 * self.impact_score
-            + 0.3 * self.feasibility_score
+            0.30 * self.novelty_score
+            + 0.25 * self.impact_score
+            + 0.20 * self.feasibility_score
+            + 0.15 * self.mechanistic_depth
+            + 0.10 * self.falsifiability_score
         )
 
 
@@ -88,6 +90,7 @@ class HypothesisRanker:
 
     _SCORE_FIELDS = frozenset({
         "novelty_score", "feasibility_score", "impact_score",
+        "mechanistic_depth", "falsifiability_score",
         "weaknesses", "strengths", "critique_summary", "overall_rank",
     })
 
@@ -112,9 +115,11 @@ class HypothesisRanker:
             novelty_score=float(data.get("novelty_score", 5.0)),
             feasibility_score=float(data.get("feasibility_score", 5.0)),
             impact_score=float(data.get("impact_score", 5.0)),
-            strengths=data.get("strengths", []),
-            weaknesses=data.get("weaknesses", []),
-            critique_summary=data.get("critique_summary", ""),
+            mechanistic_depth=float(data.get("mechanistic_depth", 0.0)),
+            falsifiability_score=float(data.get("falsifiability_score", 0.0)),
+            strengths=_coerce_str_list(data.get("strengths", [])),
+            weaknesses=_coerce_str_list(data.get("weaknesses", [])),
+            critique_summary=str(data.get("critique_summary", "")),
         )
 
     async def rank_all(

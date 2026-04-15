@@ -1,78 +1,121 @@
-# NexusLink — Cross-Domain Research Hypothesis Engine
+# NexusLink — Self-Refining Cross-Domain Hypothesis Engine with Evidence Integrity
 
 ## What This Project Does
-NexusLink ingests research papers from multiple scientific domains, builds a cross-domain knowledge graph, identifies non-obvious conceptual bridges between fields, and generates novel, citation-backed hypothesis reports that suggest unexplored research directions.
 
-## Architecture: 3-Layer Pipeline (Raw → Wiki → LLM)
+NexusLink ingests research papers from multiple scientific domains, builds a cross-domain knowledge graph inside an Obsidian vault, generates novel hypotheses by identifying non-obvious conceptual bridges between fields, verifies the integrity of all evidence chains (retraction checking, citation validation), and improves with every cycle through human feedback and autonomous paper discovery.
 
-### Layer 1: RAW (Ingestion & Extraction)
-- **ingestion/**: Parses PDFs, ArXiv links, DOIs, and BibTeX imports. Uses `pymupdf4llm` for PDF→Markdown, `arxiv` API client for ArXiv papers.
-- **extraction/**: NER for scientific entities (chemicals, genes, methods, materials). Extracts claims, findings, methodology sections. Uses spaCy + domain-specific models.
-- **store/**: Stores raw text chunks with metadata. Vector embeddings via `sentence-transformers` for semantic search. ChromaDB for vector store.
-- **schemas/**: Pydantic v2 models — `RawDocument`, `ExtractedEntity`, `Citation`, `Claim`, `Methodology`.
-- **Output**: Each paper becomes a structured JSON with entities, claims, citations, and embeddings.
+## Key Differentiator
 
-### Layer 2: WIKI (Knowledge Graph & Linking)
-**The `wiki/` directory is the Obsidian vault.** Open it directly in Obsidian. All notes use `[[wikilinks]]` — never plain Markdown links for internal references. Python scripts write output as `.md` files directly into `wiki/` subdirectories; Obsidian picks them up automatically.
+**Unlike one-shot systems (SciAgents, ResearchLink, KG-CoI), NexusLink is cyclical and self-refining.**
 
-- **linker/**: The core innovation — finds cross-domain concept bridges. Example: "Casimir effect" (physics) ↔ "van der Waals forces" (chemistry) ↔ "gecko adhesion" (biology). Uses embedding similarity + ontology alignment.
-- **graph/**: Builds a NetworkX/neo4j knowledge graph. Nodes = concepts/entities, Edges = relations (cites, contradicts, extends, analogous_to, enables). Supports temporal evolution of ideas.
-- **taxonomy/**: Maps papers to domain ontologies (e.g., Physics→Quantum→Casimir, Biology→Biomimetics→Adhesion). Uses MESH, ArXiv categories, and custom taxonomies.
-- **citations/**: Full academic citation pipeline — BibTeX/CSL-JSON storage, DOI resolution, citation graph analysis. Tracks which claims cite which sources.
-- **templates/**: Obsidian templates for each entity type — `Paper.md`, `Concept.md`, `Hypothesis.md`, `Method.md`. Scripts in `raw/ingestion/` and `llm/hypothesis/` render these templates when writing output notes.
-- **Output**: A queryable knowledge graph where cross-domain links are first-class citizens, browsable and editable in Obsidian.
+| Feature | SciAgents | ResearchLink | KG-CoI | NexusLink |
+|---------|-----------|--------------|--------|-----------|
+| KG → Hypothesis | ✓ | ✓ | ✓ | ✓ |
+| Cyclical Refinement | ✗ | ✗ | ✗ | ✓ |
+| Human-in-the-Loop | ✗ | ✗ | ✗ | ✓ |
+| Self-Healing Vault | ✗ | ✗ | ✗ | ✓ |
+| Autonomous Expansion | ✗ | ✗ | ✗ | ✓ |
+| Evidence Integrity | ✗ | ✗ | ✗ | ✓ |
+| Obsidian Interface | ✗ | ✗ | ✗ | ✓ |
 
-### Layer 3: LLM (Hypothesis Generation)
-- **hypothesis/**: Takes cross-domain bridges from wiki layer and generates structured hypotheses. Format: "If [finding from domain A] and [mechanism from domain B], then [novel prediction for domain C]". Each hypothesis includes confidence score, required experiments, and potential impact.
-- **scoring/**: Ranks hypotheses by: novelty (not already published), feasibility (can be tested), impact (significance if true), cross-domain-span (more domains = more novel).
-- **reports/**: Generates publication-ready reports in LaTeX and Markdown. Sections: Abstract, Cross-Domain Analysis, Generated Hypotheses (ranked), Evidence Map, Suggested Experiments, Full Bibliography.
-- **prompts/**: Jinja2 prompt templates for each stage — entity extraction, link discovery, hypothesis generation, critique, refinement.
-- **validation/**: Checks generated hypotheses against known literature for contradictions, verifies citation accuracy, flags speculative vs. grounded claims.
-- **Output**: A ranked hypothesis report with full citations, confidence scores, and experimental roadmaps.
+## Architecture: Cyclical Pipeline
+
+```
+Ingest → Vault → Heal → Feedback → Link → Hypothesize → Integrity Check → Expand → Vault (repeat)
+```
+
+Each cycle:
+
+- **READ** — VaultReader scans all notes, detects human edits
+- **HEAL** — Merge duplicate concepts, fix broken links, prune junk, propagate human corrections
+- **FEEDBACK** — Collect reviewed/rejected hypotheses as few-shot examples, calibrate scoring
+- **LINK** — Embed concepts, find cross-domain bridges (domain distance ≥ 2), rerank with cross-encoder
+- **HYPOTHESIZE** — Generate with mechanistic reasoning + falsifiable predictions, inject feedback
+- **INTEGRITY** — Check retraction status via CrossRef, score evidence reliability via Semantic Scholar
+- **EXPAND** — Auto-search for supporting/refuting papers, ingest into vault
+- **RECORD** — Log cycle stats, write cycle note
+
+## Layer Details
+
+### RAW (raw/)
+- PDF ingestion: pymupdf4llm
+- ArXiv: arxiv API client
+- DOI: habanero (CrossRef)
+- NER: spaCy/sciSpaCy + 200 phrase patterns
+- Output: `wiki/01-papers/*.md` (Obsidian notes with YAML + `[[entities]]`)
+
+### WIKI (wiki/)
+- The `wiki/` folder IS an Obsidian vault — open it in Obsidian
+- Embeddings: all-mpnet-base-v2 (768-dim) with context sentences
+- Bridge finding: cross-domain only (domain distance ≥ 2), co-occurrence filter, near-duplicate filter
+- Reranking: cross-encoder/ms-marco-MiniLM-L-6-v2
+- Knowledge graph: NetworkX DiGraph
+- Output: `wiki/02-concepts/*.md` with `[[wikilinks]]`
+
+### LLM (llm/)
+- Claude Sonnet (default) or Ollama (fallback)
+- Enforces: Mechanism A + Mechanism B + Connection Rationale + Falsifiable Prediction
+- Scoring: novelty, feasibility, impact, mechanistic_depth, falsifiability
+- Calibrated by human feedback over cycles
+- Output: `wiki/03-hypotheses/*.md` with full structure
+
+### Vault System (wiki/vault/)
+- `reader.py` — Parses all vault notes, detects human edits via content hashing
+- `healer.py` — Merges duplicates, fixes broken links, prunes low-quality, propagates human corrections
+- `feedback.py` — Builds few-shot examples from reviewed/rejected hypotheses, calibrates scoring
+- `expander.py` — Searches Semantic Scholar for supporting/refuting papers, auto-ingests
+- `integrity.py` — Checks retractions via CrossRef, scores evidence reliability, flags compromised hypotheses
 
 ## Tech Stack
-- **Runtime**: Python 3.12, managed with `uv`
+- **Runtime**: Python 3.12, uv
 - **Core**: pydantic v2, networkx, sentence-transformers, chromadb
-- **PDF/Papers**: pymupdf4llm, arxiv, habanero (DOI resolution)
-- **NLP**: spaCy, sciSpaCy (biomedical NER)
-- **Tech Stack**:
-- **LLM**: anthropic SDK (Claude API), httpx (Ollama local inference)
+- **PDF**: pymupdf4llm, arxiv, habanero
+- **NLP**: spaCy, sciSpaCy
+- **LLM**: anthropic SDK (Claude), ollama (fallback)
+- **APIs**: Semantic Scholar, CrossRef (retraction data), Unpaywall
 - **API**: FastAPI + uvicorn
-- **Testing**: pytest, pytest-asyncio
+- **Testing**: pytest
 - **Linting**: ruff
-- **Citations**: citeproc-py, bibtexparser
-- **Vault**: obsidiantools (programmatic read/write of the Obsidian vault in `wiki/`)
 
-## Key Commands
-
-### 🚀 Quickstart Demo
-```bash
-uv run python demo/run_demo.py
+## CLI Commands
 ```
-Open `demo/demo-vault/` in Obsidian — explore papers, concepts, bridges, and generated hypotheses. 
+nexuslink ingest <source>          # Ingest PDF/ArXiv/DOI
+nexuslink ingest-batch <folder>    # Ingest all PDFs in folder
+nexuslink link                     # Run cross-domain linking
+nexuslink hypothesize              # Generate hypotheses
+nexuslink cycle                    # Run one full cycle (the main command)
+nexuslink cycle --continuous       # Run cycles until vault stabilizes
+nexuslink heal                     # Run vault healer (--apply to execute)
+nexuslink integrity                # Check evidence integrity of all hypotheses
+nexuslink expand                   # Auto-expand vault with new papers
+nexuslink feedback                 # Show feedback/calibration state
+nexuslink benchmark --cycles 3     # Run one-shot vs cyclic comparison
+nexuslink benchmark --export-latex # Export LaTeX table for paper
+nexuslink status                   # Show vault stats
+```
 
-**LLM Configuration:**
-- **Local Inference (Zero-Cost):** Set `OLLAMA_MODEL` (e.g., `llama3.1:8b`) to use a local Ollama instance. The demo will auto-detect a running Ollama server on `http://localhost:11434` if no keys are provided.
-- **Cloud Inference:** Set `ANTHROPIC_API_KEY` for Claude API generation.
+## How Scientists Use This
 
-### Pipeline Commands
-- `uv run nexuslink ingest <pdf|arxiv_id|doi>` — Ingest a single paper
-- `uv run nexuslink ingest-batch <folder>` — Ingest all PDFs in a folder
-- `uv run nexuslink link [--threshold 0.65] [--force-rebuild]` — Run cross-domain linking
-- `uv run nexuslink hypothesize [--top-n 5] [--skip-validation]` — Generate hypotheses
-- `uv run nexuslink run <source1> <source2> ...` — Full pipeline end-to-end
-- `uv run nexuslink status [--vault-path ./wiki/]` — Print vault statistics
-- `uv run uvicorn nexuslink.api.app:app --reload` — Start API dev server (http://localhost:8000)
-- `uv run pytest tests/` — Run tests
-- `uv run ruff check .` — Lint
+1. `nexuslink ingest` — feed it papers from 3+ different domains
+2. `nexuslink cycle` — run first cycle
+3. Open `wiki/` in Obsidian — browse graph view, read hypotheses
+4. Edit hypothesis YAML: change `status` to `"reviewed"` or `"rejected"`, adjust scores, add Human Notes
+5. `nexuslink cycle` — second cycle learns from your edits
+6. Repeat — each cycle: better hypotheses, verified evidence, growing vault
 
 ## Resume Context
 - Check PROGRESS.md for current phase
-- Each layer is independently testable
-- Start with RAW layer, then WIKI, then LLM
+- Each cycle is independently runnable
+- The vault is the source of truth — always start by reading it
+
+## Prior Work
+- SciAgents (Ghafarollahi & Buehler, 2024) — multi-agent KG hypothesis generation (one-shot)
+- ResearchLink (2025) — link prediction over KGs for hypothesis generation
+- KG-CoI (2024) — KG-augmented chain-of-idea with hallucination detection
+- CrossTrace (2025) — dataset of cross-domain reasoning traces
+- Zhao et al. (2009) — repulsive Casimir force in chiral metamaterials (foundational reference for bridge concept)
 
 ## Funding Targets
-- NSF Convergence Accelerator (Track: AI4Science)
-- DARPA AIE (AI Exploration)
+- NSF Convergence Accelerator (AI4Science track)
+- DARPA AIE
 - Wellcome Trust Discovery Award
-- Sloan Research Fellowship tools track

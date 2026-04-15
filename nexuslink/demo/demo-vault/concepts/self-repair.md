@@ -7,6 +7,7 @@ tags: []
 
 ## Definition
 
+Self-repair: nodes autonomously detect inconsistency and restore state.
 
 ## Related Concepts
 
@@ -23,3 +24,11 @@ tags: []
 - [[homology-directed repair]] → enables
 - [[self-healing polymer]] → enables
 - [[autonomous repair]] → extends
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```

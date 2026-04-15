@@ -1,5 +1,6 @@
 [
   "dataview",
   "templater-obsidian",
-  "graph-analysis"
+  "graph-analysis",
+  "3d-graph"
 ]

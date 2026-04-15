@@ -28,7 +28,7 @@ Error-correcting codes with redundancy enable fault tolerance in distributed sys
 - [[self-repair]]
 - [[Byzantine fault]]
 
-<!-- Concept/method/material notes linked via [[wikilinks]] above -->
+<!-- entities linked as wikilinks above -->
 
 ## References
 

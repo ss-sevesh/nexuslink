@@ -18,8 +18,8 @@ from nexuslink.api.deps import get_nexuslink
 def _make_nx(tmp_path: Path) -> MagicMock:
     """Build a NexusLink mock pre-wired to a temp vault."""
     vault = tmp_path / "wiki"
-    (vault / "papers").mkdir(parents=True)
-    (vault / "concepts").mkdir(parents=True)
+    (vault / "01-papers").mkdir(parents=True)
+    (vault / "02-concepts").mkdir(parents=True)
     (vault / "03-hypotheses").mkdir(parents=True)
     (vault / "04-reports").mkdir(parents=True)
 
@@ -129,7 +129,7 @@ class TestIngest:
 
     def test_list_papers_with_notes(self, client: TestClient, tmp_path: Path) -> None:
         vault = tmp_path / "wiki"
-        paper = vault / "papers" / "My Paper.md"
+        paper = vault / "01-papers" / "My Paper.md"
         paper.write_text(
             "---\ntitle: \"My Paper\"\nauthors: [\"Alice\"]\ndomain: [\"physics\"]\nyear: 2024\ntags: []\n---\n\n"
             "## Summary\n\n## Entities\n\n- [[CRISPR]] (method)\n",
@@ -146,7 +146,7 @@ class TestIngest:
     def test_list_papers_pagination(self, client: TestClient, tmp_path: Path) -> None:
         vault = tmp_path / "wiki"
         for i in range(5):
-            p = vault / "papers" / f"Paper{i}.md"
+            p = vault / "01-papers" / f"Paper{i}.md"
             p.write_text(
                 f"---\ntitle: \"Paper{i}\"\nauthors: []\ndomain: []\nyear:\ntags: []\n---\n\n"
                 "## Entities\n\n<!-- none detected -->\n",

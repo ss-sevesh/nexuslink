@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import ssl
 import tempfile
 from pathlib import Path
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 import arxiv
 from loguru import logger
@@ -26,9 +29,17 @@ async def ingest_arxiv(arxiv_id: str) -> RawDocument:
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         safe_name = arxiv_id.replace("/", "_") + ".pdf"
-        await asyncio.to_thread(
-            paper.download_pdf, dirpath=tmp_dir, filename=safe_name
-        )
+        for attempt in range(3):
+            try:
+                await asyncio.to_thread(
+                    paper.download_pdf, dirpath=tmp_dir, filename=safe_name
+                )
+                break
+            except Exception as e:
+                if attempt == 2:
+                    raise
+                logger.warning("PDF download attempt {} failed: {} — retrying", attempt + 1, e)
+                await asyncio.sleep(3)
         pdf_path = Path(tmp_dir) / safe_name
         doc = await ingest_pdf(pdf_path)
 

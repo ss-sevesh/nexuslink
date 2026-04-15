@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from nexuslink.llm.prompts.templates import get_system_prompt, render_template
 from nexuslink.utils.json_parser import extract_json
-from nexuslink.wiki.graph.builder import KnowledgeGraph
+from nexuslink.wiki.graph.builder import KnowledgeGraph, _sanitize as _sanitize_name
 from nexuslink.wiki.linker.bridge_finder import ConceptBridge
 
 if TYPE_CHECKING:
@@ -51,6 +51,8 @@ class GeneratedHypothesis(BaseModel):
     domains_spanned: list[str] = Field(default_factory=list)
     suggested_experiments: list[str] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0, default=0.5)
+    mechanistic_depth: float = Field(ge=0.0, le=10.0, default=0.0)
+    falsifiability_score: float = Field(ge=0.0, le=10.0, default=0.0)
     raw_reasoning: str = ""
 
 
@@ -315,9 +317,10 @@ class HypothesisGenerator:
         domains_yaml = "[" + ", ".join(f'"{d}"' for d in hyp.domains_spanned) + "]"
 
         # Each bridge key is "entity_a::entity_b" — render as two wikilinks
+        # _sanitize_name ensures the link target matches the actual concept note filename
         bridge_links = "\n".join(
-            f"- [[{k.split('::', 1)[0]}]] ↔ [[{k.split('::', 1)[1]}]]"
-            if "::" in k else f"- [[{k}]]"
+            f"- [[{_sanitize_name(k.split('::', 1)[0])}]] ↔ [[{_sanitize_name(k.split('::', 1)[1])}]]"
+            if "::" in k else f"- [[{_sanitize_name(k)}]]"
             for k in hyp.evidence_bridges
         )
 
@@ -329,7 +332,7 @@ class HypothesisGenerator:
         first = next((k for k in hyp.evidence_bridges if "::" in k), None)
         if first:
             a, b = first.split("::", 1)
-            cross_domain = f"[[{a}]] ↔ [[{b}]]"
+            cross_domain = f"[[{_sanitize_name(a)}]] ↔ [[{_sanitize_name(b)}]]"
         else:
             cross_domain = "<!-- see evidence above -->"
 
@@ -337,9 +340,12 @@ class HypothesisGenerator:
 ---
 id: "{hyp.wiki_id}"
 confidence: {hyp.confidence:.2f}
-novelty_score:
-feasibility_score:
-impact_score:
+novelty_score: 0.0
+feasibility_score: 0.0
+impact_score: 0.0
+mechanistic_depth: 0.0
+falsifiability_score: 0.0
+composite_score: 0.0
 domains_spanned: {domains_yaml}
 status: generated
 tags: []
@@ -363,6 +369,15 @@ tags: []
 
 ## References
 
+## Related Hypotheses (live)
+
+```dataview
+LIST composite_score
+FROM "03-hypotheses"
+WHERE file.name != this.file.name
+SORT composite_score DESC
+LIMIT 10
+```
 """
         path = _HYPOTHESES_DIR / f"{hyp.wiki_id}.md"
         await asyncio.to_thread(path.write_text, content, "utf-8")
@@ -392,6 +407,21 @@ async def update_wiki_note_scores(scored: Any) -> None:
     content = _re.sub(r"^novelty_score:.*$", f"novelty_score: {scored.novelty_score:.1f}", content, flags=_re.MULTILINE)
     content = _re.sub(r"^feasibility_score:.*$", f"feasibility_score: {scored.feasibility_score:.1f}", content, flags=_re.MULTILINE)
     content = _re.sub(r"^impact_score:.*$", f"impact_score: {scored.impact_score:.1f}", content, flags=_re.MULTILINE)
+    mech = getattr(scored, "mechanistic_depth", 0.0)
+    fals = getattr(scored, "falsifiability_score", 0.0)
+    comp = getattr(scored, "composite_score", 0.0)
+    if _re.search(r"^mechanistic_depth:.*$", content, flags=_re.MULTILINE):
+        content = _re.sub(r"^mechanistic_depth:.*$", f"mechanistic_depth: {mech:.1f}", content, flags=_re.MULTILINE)
+    else:
+        content = _re.sub(r"^impact_score:.*$", f"impact_score: {scored.impact_score:.1f}\nmechanistic_depth: {mech:.1f}", content, flags=_re.MULTILINE)
+    if _re.search(r"^falsifiability_score:.*$", content, flags=_re.MULTILINE):
+        content = _re.sub(r"^falsifiability_score:.*$", f"falsifiability_score: {fals:.1f}", content, flags=_re.MULTILINE)
+    else:
+        content = _re.sub(r"^mechanistic_depth:.*$", f"mechanistic_depth: {mech:.1f}\nfalsifiability_score: {fals:.1f}", content, flags=_re.MULTILINE)
+    if _re.search(r"^composite_score:.*$", content, flags=_re.MULTILINE):
+        content = _re.sub(r"^composite_score:.*$", f"composite_score: {comp:.2f}", content, flags=_re.MULTILINE)
+    else:
+        content = _re.sub(r"^falsifiability_score:.*$", f"falsifiability_score: {fals:.1f}\ncomposite_score: {comp:.2f}", content, flags=_re.MULTILINE)
     content = _re.sub(r"^status:.*$", "status: scored", content, flags=_re.MULTILINE)
     await asyncio.to_thread(path.write_text, content, "utf-8")
     logger.debug("Updated scores for {}", scored.wiki_id)
@@ -416,7 +446,7 @@ def _parse_hypothesis_list(
     if not isinstance(data, list):
         data = [data]
 
-    evidence_keys = [f"{b.entity_a}::{b.entity_b}" for b in bridges]
+    all_bridge_keys = [f"{b.entity_a}::{b.entity_b}" for b in bridges]
     hypotheses: list[GeneratedHypothesis] = []
 
     for item in data:
@@ -425,6 +455,13 @@ def _parse_hypothesis_list(
         statement = item.get("statement", "").strip()
         if not statement:
             continue
+        # Use bridge_index from LLM output to assign the specific inspiring bridge.
+        # Fall back to all bridges only if the field is absent or out of range.
+        idx = item.get("bridge_index")
+        if isinstance(idx, int) and 0 <= idx < len(all_bridge_keys):
+            evidence_keys = [all_bridge_keys[idx]]
+        else:
+            evidence_keys = all_bridge_keys
         hypotheses.append(
             GeneratedHypothesis(
                 statement=statement,

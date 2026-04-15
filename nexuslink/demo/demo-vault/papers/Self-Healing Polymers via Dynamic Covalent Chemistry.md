@@ -28,7 +28,7 @@ Self-healing polymers employing dynamic covalent bonds based on the Diels-Alder 
 - [[crack propagation]]
 - [[autonomous repair]]
 
-<!-- Concept/method/material notes linked via [[wikilinks]] above -->
+<!-- entities linked as wikilinks above -->
 
 ## References
 

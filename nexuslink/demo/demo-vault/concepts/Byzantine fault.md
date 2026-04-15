@@ -7,6 +7,7 @@ tags: []
 
 ## Definition
 
+Byzantine faults are nodes that behave arbitrarily or maliciously.
 
 ## Related Concepts
 
@@ -19,3 +20,11 @@ tags: []
 ## Cross-Domain Bridges
 
 <!-- none yet -->
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```

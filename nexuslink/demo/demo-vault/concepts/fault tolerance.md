@@ -7,6 +7,7 @@ tags: []
 
 ## Definition
 
+Byzantine fault tolerance: system tolerates f Byzantine faults.
 
 ## Related Concepts
 
@@ -19,3 +20,11 @@ tags: []
 ## Cross-Domain Bridges
 
 <!-- none yet -->
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```

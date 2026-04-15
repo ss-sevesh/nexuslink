@@ -7,6 +7,7 @@ tags: []
 
 ## Definition
 
+Redundancy ensures a quorum of honest nodes outnumbers faulty ones.
 
 ## Related Concepts
 
@@ -19,3 +20,11 @@ tags: []
 ## Cross-Domain Bridges
 
 <!-- none yet -->
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```

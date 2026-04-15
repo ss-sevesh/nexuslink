@@ -7,6 +7,7 @@ tags: []
 
 ## Definition
 
+This autonomous repair process requires no external catalyst or adhesive.
 
 ## Related Concepts
 
@@ -21,3 +22,11 @@ tags: []
 
 - [[self-repair]] → extends
 - [[homology-directed repair]] → enables
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```

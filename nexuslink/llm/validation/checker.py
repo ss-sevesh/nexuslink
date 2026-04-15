@@ -106,7 +106,7 @@ class ClaimChecker:
         Returns a list of :class:`CitationIssue` (empty means no problems detected).
         """
         issues: list[CitationIssue] = []
-        papers_dir = vault_path / "papers"
+        papers_dir = vault_path / "01-papers"
 
         # --- Vault file check ---
         for bridge_key in hypothesis.evidence_bridges:

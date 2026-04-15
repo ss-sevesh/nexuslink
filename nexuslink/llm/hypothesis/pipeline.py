@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from pathlib import Path
 
 from loguru import logger
@@ -64,8 +65,12 @@ async def run_hypothesis_pipeline(
         logger.warning("No cross-domain bridges in graph. Run `nexuslink link` first.")
         return _empty_summary()
 
-    bridges = all_bridges[:top_bridges]
-    logger.info("Using {} / {} bridges for generation", len(bridges), len(all_bridges))
+    quality_bridges = [b for b in all_bridges if _is_quality_bridge(b)]
+    bridges = _diversify_bridges(quality_bridges, top_n=top_bridges)
+    logger.info(
+        "Using {} / {} quality bridges ({} total) for generation",
+        len(bridges), len(quality_bridges), len(all_bridges),
+    )
 
     # ----------------------------------------------------------------
     # 3. Generate hypotheses
@@ -162,6 +167,81 @@ async def run_hypothesis_pipeline(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+_NOISE_NAME_RE = re.compile(
+    r"^[A-Z]{1,4}$"                          # pure short abbreviations: MIT, ACM, NLP, AI
+    r"|Theorem\s*\d"                          # "Theorem 4.2"
+    r"|Lemma\s*\d"                            # "Lemma 4"
+    r"|Corollary\s*\d"                        # "Corollary 1"
+    r"|^Figure\s*\d"                          # "Figure 3"
+    r"|^Table\s*\d"                           # "Table 1"
+    r"|^Equation\s*\d"                        # "Equation 5"
+    r"|Creative Commons"                      # license strings
+    r"|^[A-Z]\.$"                             # single-letter abbrevs like "E."
+    r"|^\d+$"                                 # bare numbers
+    r"|^[A-Z]{8,}$"                          # very long all-caps junk: COUNTERFACT (8+)
+    r"|Journal\s+of|Journal\s+on"            # journal names: "SIAM Journal on Optimization"
+    r"|Transactions\s+on|Conference\s+on"    # venue names
+    r"|Proceedings\s+of"                     # proceedings
+)
+
+# Strips version/variant suffixes iteratively: "/32", "-B16", " v2", ".5"
+_VER_RE = re.compile(r"[/\-\s\.][a-z]{0,2}\d+[a-z]*$", re.IGNORECASE)
+
+
+def _name_stem(name: str) -> str:
+    """Strip model version suffixes to compare architecture families."""
+    s = name.lower().strip("./- ")
+    prev = None
+    while s != prev:
+        prev = s
+        s = _VER_RE.sub("", s).strip("./- ")
+    return s
+
+
+_MAX_PER_DOMAIN_PAIR = 2  # max bridges from the same (domain_a, domain_b) pair
+
+
+def _diversify_bridges(bridges: list, top_n: int) -> list:
+    """Return up to *top_n* bridges, capped at *_MAX_PER_DOMAIN_PAIR* per domain pair.
+
+    Bridges are already sorted by similarity descending.  Capping prevents the
+    top-N from being dominated by cs.CV ↔ cs.AI ViT-variant pairs, forcing more
+    diverse cross-domain coverage.
+    """
+    pair_counts: dict[tuple[str, str], int] = {}
+    selected = []
+    for b in bridges:
+        pair = (b.domain_a, b.domain_b)
+        if pair_counts.get(pair, 0) >= _MAX_PER_DOMAIN_PAIR:
+            continue
+        pair_counts[pair] = pair_counts.get(pair, 0) + 1
+        selected.append(b)
+        if len(selected) >= top_n:
+            break
+    return selected
+
+
+def _is_quality_bridge(bridge) -> bool:  # type: ignore[no-untyped-def]
+    """Return True if both entities are genuine scientific concepts worth hypothesizing about."""
+    for name in (bridge.entity_a, bridge.entity_b):
+        if _NOISE_NAME_RE.search(name):
+            return False
+        stripped = name.strip("./- ")
+        if len(stripped) < 4:
+            return False
+        if stripped.startswith("ON ") or stripped.startswith("A "):
+            return False
+
+    # Skip bridges between model/dataset variants that share the same stem
+    # (e.g. ViT-B/32 ↔ ViT-B/16, ViT-L16 ↔ ViT-L/32, Axial ResNet ↔ Axial-ViT-B/32)
+    stem_a = _name_stem(bridge.entity_a)
+    stem_b = _name_stem(bridge.entity_b)
+    if stem_a and stem_b and len(stem_a) >= 3 and (stem_a == stem_b or stem_a.startswith(stem_b) or stem_b.startswith(stem_a)):
+        return False
+
+    return True
+
 
 def _empty_summary() -> dict:
     return {

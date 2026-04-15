@@ -146,12 +146,13 @@ class TestPromptTemplates:
             assert b.entity_a in rendered
             assert b.entity_b in rendered
 
-    def test_hypothesis_generation_includes_few_shot_example(self):
+    def test_hypothesis_generation_includes_structure_example(self):
         bridges = [_bridge("A", "d1", "B", "d2")]
         rendered = render_hypothesis_generation(bridges, ["d1", "d2"], 10)
-        # The few-shot example mentions gecko and Casimir
-        assert "gecko" in rendered.lower()
-        assert "Casimir" in rendered
+        # Template must include bridge_index field (for evidence tracing) and
+        # must NOT include the gecko/Casimir example (which caused verbatim reuse)
+        assert "bridge_index" in rendered
+        assert "gecko" not in rendered.lower()
 
     def test_hypothesis_critique_contains_statement(self):
         h = _hyp()
@@ -256,12 +257,16 @@ class TestParseHypothesisList:
 class TestScoredHypothesisCompositeScore:
 
     def test_composite_formula(self):
+        # Weights: 30% novelty + 25% impact + 20% feasibility + 15% mechanistic_depth + 10% falsifiability
         h = _scored(novelty_score=8.0, feasibility_score=6.0, impact_score=9.0)
-        expected = 0.4 * 8.0 + 0.3 * 9.0 + 0.3 * 6.0
+        expected = 0.30 * 8.0 + 0.25 * 9.0 + 0.20 * 6.0 + 0.15 * 0.0 + 0.10 * 0.0
         assert abs(h.composite_score - expected) < 1e-6
 
     def test_all_tens_gives_ten(self):
-        h = _scored(novelty_score=10.0, feasibility_score=10.0, impact_score=10.0)
+        h = _scored(
+            novelty_score=10.0, feasibility_score=10.0, impact_score=10.0,
+            mechanistic_depth=10.0, falsifiability_score=10.0,
+        )
         assert abs(h.composite_score - 10.0) < 1e-6
 
     def test_all_zeros_gives_zero(self):

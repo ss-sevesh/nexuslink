@@ -7,6 +7,7 @@ tags: []
 
 ## Definition
 
+Self-healing polymers are capable of autonomously repairing mechanical damage.
 
 ## Related Concepts
 
@@ -21,3 +22,11 @@ tags: []
 
 - [[self-repair]] → enables
 - [[homology-directed repair]] → enables
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```

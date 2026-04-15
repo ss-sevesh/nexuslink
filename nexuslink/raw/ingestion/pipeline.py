@@ -1,5 +1,5 @@
 """Top-level ingestion pipeline: route a source to the correct loader, extract entities,
-and write an Obsidian-compatible Paper note into wiki/papers/.
+and write an Obsidian-compatible Paper note into wiki/01-papers/.
 """
 
 from __future__ import annotations
@@ -24,8 +24,22 @@ from ..schemas.models import RawDocument
 from .arxiv_loader import ingest_arxiv
 from .pdf_loader import ingest_pdf
 
-# wiki/papers/ relative to this file:  raw/ingestion/../../wiki/papers
-_WIKI_PAPERS_DIR = Path(__file__).parent.parent.parent / "wiki" / "papers"
+_JATS_TAG_RE = re.compile(r"<jats:[^>]+>|</jats:[^>]+>|<[^>]+>")
+_CITATION_NUM_RE = re.compile(r"\s*\d+[–-]\d+|\s*\d+")  # inline citation superscripts
+
+
+def _strip_jats_xml(text: str) -> str:
+    """Remove JATS/HTML tags and inline citation numbers from CrossRef abstracts."""
+    if not text:
+        return ""
+    text = _JATS_TAG_RE.sub("", text)
+    # Collapse whitespace left by removed tags
+    text = re.sub(r" {2,}", " ", text).strip()
+    return text
+
+
+# wiki/01-papers/ relative to this file:  raw/ingestion/../../wiki/01-papers
+_WIKI_PAPERS_DIR = Path(__file__).parent.parent.parent / "wiki" / "01-papers"
 
 _ARXIV_RE = re.compile(r"^\d{4}\.\d{4,5}(v\d+)?$")
 _DOI_RE = re.compile(r"^10\.\d{4,}/.+")
@@ -126,16 +140,38 @@ async def _ingest_doi(doi: str) -> RawDocument:
     year_parts = msg.get("published", {}).get("date-parts", [[]])
     year = year_parts[0][0] if year_parts and year_parts[0] else None
 
-    return RawDocument(
+    raw_abstract = msg.get("abstract", "")
+    abstract = _strip_jats_xml(raw_abstract)
+
+    crossref_subjects = [s.get("name", "") for s in msg.get("subject", []) if s.get("name")]
+
+    doc = RawDocument(
         title=title,
         authors=authors,
         doi=doi,
-        abstract=msg.get("abstract", ""),
-        full_text=msg.get("abstract", ""),  # CrossRef doesn't give full text
+        abstract=abstract,
+        full_text=abstract,  # CrossRef doesn't give full text
         source_path=f"doi:{doi}",
         year=year,
-        domain_tags=[s.get("name", "") for s in msg.get("subject", [])],
+        domain_tags=crossref_subjects,
     )
+
+    # CrossRef subject fields are often empty for science journals (Nature, Science, PRL).
+    # Fall back to keyword-based domain classification so DOI papers are never orphaned
+    # into the catch-all "unknown" domain, which would prevent cross-domain bridging.
+    if not doc.domain_tags:
+        try:  # noqa: PLC0415
+            from nexuslink.wiki.taxonomy.classifier import classify_domain
+        except ImportError:
+            from wiki.taxonomy.classifier import classify_domain
+        ranked = classify_domain(doc)
+        if ranked:
+            # Take the top domain (and second if score is close) as domain tags
+            top_score = ranked[0][1]
+            doc.domain_tags = [d for d, s in ranked if s >= top_score * 0.6][:2]
+            logger.info("DOI {} has no CrossRef subjects — classified as: {}", doi, doc.domain_tags)
+
+    return doc
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +179,7 @@ async def _ingest_doi(doi: str) -> RawDocument:
 # ---------------------------------------------------------------------------
 
 async def _write_wiki_note(doc: RawDocument, entities: list) -> Path:
-    """Render a Paper.md note into wiki/papers/ using [[wikilinks]] for entities."""
+    """Render a Paper.md note into wiki/01-papers/ using [[wikilinks]] for entities."""
     import asyncio
 
     _WIKI_PAPERS_DIR.mkdir(parents=True, exist_ok=True)
@@ -173,6 +209,10 @@ def _render_paper_note(doc: RawDocument, entities: list) -> str:
     year_val = str(doc.year) if doc.year else ""
     arxiv_val = doc.arxiv_id or ""
 
+    # tags = domain slugs so Obsidian tag search works (#cs, #biology etc.)
+    tag_slugs = [re.sub(r"[^a-z0-9_-]", "-", d.lower().strip()) for d in doc.domain_tags if d]
+    tags_yaml = "[" + ", ".join(f'"{t}"' for t in tag_slugs) + "]" if tag_slugs else "[]"
+
     key_findings = _extract_key_findings(doc.abstract or "")
     methods_md = _extract_methods_md(entities)
 
@@ -184,7 +224,7 @@ doi: "{doi_val}"
 arxiv_id: "{arxiv_val}"
 domain: {domain_yaml}
 year: {year_val}
-tags: []
+tags: {tags_yaml}
 ---
 
 ## Summary

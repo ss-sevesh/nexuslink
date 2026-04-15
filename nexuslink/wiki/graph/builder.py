@@ -180,7 +180,7 @@ class KnowledgeGraph:
 
         Returns the number of files written.
         """
-        concepts_dir = _WIKI_DIR / "concepts"
+        concepts_dir = _WIKI_DIR / "02-concepts"
         concepts_dir.mkdir(parents=True, exist_ok=True)
 
         count = 0
@@ -214,7 +214,7 @@ class KnowledgeGraph:
             await asyncio.to_thread(path.write_text, content, "utf-8")
             count += 1
 
-        logger.info("Exported {} concept notes to wiki/concepts/", count)
+        logger.info("Exported {} concept notes to wiki/02-concepts/", count)
         return count
 
     # ------------------------------------------------------------------
@@ -291,6 +291,14 @@ tags: []
 ## Cross-Domain Bridges
 
 {cross_domain}
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```
 """
 
 

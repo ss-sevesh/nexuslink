@@ -110,6 +110,10 @@ class NexusLink:
         """
         logger.info("Starting full pipeline on {} source(s)", len(sources))
 
+        # 0. Clean slate — remove all previously generated wiki files so stale
+        #    notes never appear as ghost nodes in the Obsidian graph.
+        await asyncio.to_thread(_clean_generated_wiki, self._vault)
+
         # 1. Ingest every source (run concurrently for I/O efficiency)
         ingest_results = await asyncio.gather(
             *[self.ingest(s) for s in sources], return_exceptions=True
@@ -138,8 +142,8 @@ class NexusLink:
         for bridge and domain counts.
         """
         vault = self._vault
-        papers_dir = vault / "papers"
-        concepts_dir = vault / "concepts"
+        papers_dir = vault / "01-papers"
+        concepts_dir = vault / "02-concepts"
         hypotheses_dir = vault / "03-hypotheses"
         graph_cache = vault / ".cache" / "graph.gpickle"
 
@@ -199,6 +203,34 @@ class NexusLink:
 # ---------------------------------------------------------------------------
 # Utility
 # ---------------------------------------------------------------------------
+
+def _clean_generated_wiki(vault: Path) -> None:
+    """Delete all pipeline-generated wiki files so the next run starts clean.
+
+    Removes every .md file from papers/, concepts/, 03-hypotheses/, 04-reports/
+    and the graph pickle cache.  Source PDFs and .obsidian config are untouched.
+    """
+    import shutil
+
+    generated_dirs = [
+        vault / "01-papers",
+        vault / "02-concepts",
+        vault / "03-hypotheses",
+        vault / "04-reports",
+    ]
+    for d in generated_dirs:
+        if d.exists():
+            for f in d.glob("*.md"):
+                f.unlink()
+            logger.debug("Cleared {}", d)
+
+    cache_pickle = vault / ".cache" / "graph.gpickle"
+    if cache_pickle.exists():
+        cache_pickle.unlink()
+        logger.debug("Cleared graph cache")
+
+    logger.info("Wiki clean-slate done — all generated notes removed")
+
 
 def _count_md(directory: Path) -> int:
     if not directory.exists():

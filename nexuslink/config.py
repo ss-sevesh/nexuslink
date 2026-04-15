@@ -22,7 +22,7 @@ class NexusConfig(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=Path(__file__).parent / ".env",
         env_prefix="NEXUSLINK_",
         env_file_encoding="utf-8",
         extra="ignore",
@@ -31,7 +31,7 @@ class NexusConfig(BaseSettings):
 
     # Paths
     vault_path: Path = Field(
-        default=Path("wiki"),
+        default=Path(__file__).parent / "wiki",
         description="Absolute or relative path to the Obsidian vault (wiki/) directory.",
     )
 

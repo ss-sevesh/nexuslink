@@ -1,87 +1,84 @@
 # NexusLink
 
-Cross-domain research hypothesis engine that bridges scientific fields to surface novel, citation-backed research directions.
+**Self-Refining Cross-Domain Hypothesis Engine with Evidence Integrity Verification**
+
+Unlike one-shot hypothesis generators, NexusLink runs in iterative cycles where human feedback, autonomous paper discovery, evidence integrity verification, and self-healing knowledge graphs produce increasingly better hypotheses over time.
+
+## Why This Matters
+
+Cross-domain discovery — connecting findings from unrelated fields — is how breakthrough science happens. CRISPR came from connecting bacteriology and genetics. mRNA vaccines bridged immunology and synthetic biology. But researchers are trapped in domain silos: a materials scientist will never read a neuroscience paper that holds the key to their next breakthrough.
+
+NexusLink automates this serendipity, then verifies the evidence chain is solid.
 
 ## Architecture
 
 ```mermaid
 graph LR
-    subgraph RAW["Layer 1: RAW"]
-        A[PDFs / ArXiv / DOI] --> B[Ingestion]
-        B --> C[Extraction\nEntities · Claims]
-        C --> D[Store\nChromaDB · JSON]
-    end
-
-    subgraph WIKI["Layer 2: WIKI"]
-        E[Knowledge Graph\nNetworkX]
-        F[Cross-Domain Linker]
-        G[Taxonomy · Citations]
-        E --- F
-        F --- G
-    end
-
-    subgraph LLM["Layer 3: LLM"]
-        H[Hypothesis Generator]
-        I[Novelty Scorer]
-        J[Report · LaTeX / MD]
-        H --> I --> J
-    end
-
-    D --> E
-    G --> H
+    A[Ingest Papers] --> B[Obsidian Vault]
+    B --> C[Heal & Fix]
+    C --> D[Learn from Feedback]
+    D --> E[Find Cross-Domain Bridges]
+    E --> F[Generate Hypotheses]
+    F --> G[Verify Evidence Integrity]
+    G --> H[Expand with New Papers]
+    H --> B
+    style B fill:#f9f,stroke:#333
+    style G fill:#ff9,stroke:#333
 ```
 
 ## Quick Start
 
 ```bash
-# 1. Clone and install
-git clone <repo-url>
+# Install
+git clone https://github.com/yourusername/nexuslink.git
 cd nexuslink
 uv sync
 
-# 2. Run the one-command demo (no PDFs, no API key required)
-uv run python demo/run_demo.py
+# Ingest papers from different domains
+uv run nexuslink ingest paper1.pdf
+uv run nexuslink ingest 2301.07041  # arxiv ID
 
-# 3. Open Obsidian → "Open folder as vault" → select demo/demo-vault/
-#    Switch to Graph View to explore cross-domain bridges
+# Run a full cycle
+uv run nexuslink cycle
+
+# Open wiki/ in Obsidian and explore
+# Edit hypotheses, then run another cycle
+uv run nexuslink cycle
+
+# Check evidence integrity
+uv run nexuslink integrity
+
+# Benchmark: prove cycles beat one-shot
+uv run nexuslink benchmark --cycles 3
 ```
 
-The demo creates a fully-populated Obsidian vault with:
+## How It Differs
 
-| Folder | Contents |
-|--------|----------|
-| `papers/` | 3 × Paper.md notes (biology · materials · CS) |
-| `concepts/` | 15 × Concept.md notes with `[[wikilinks]]` |
-| `hypotheses/` | 1 × cross-domain hypothesis note |
-| `reports/` | Full bridge table + hypothesis report |
+| Feature | SciAgents (MIT) | ResearchLink | NexusLink |
+|---------|----------------|--------------|-----------|
+| Knowledge Graph → Hypothesis | ✓ | ✓ | ✓ |
+| Cyclical Self-Refinement | ✗ | ✗ | ✓ |
+| Human-in-the-Loop via Obsidian | ✗ | ✗ | ✓ |
+| Self-Healing Knowledge Graph | ✗ | ✗ | ✓ |
+| Autonomous Paper Discovery | ✗ | ✗ | ✓ |
+| Evidence Integrity Verification | ✗ | ✗ | ✓ |
+| Retraction Checking | ✗ | ✗ | ✓ |
 
-**Optional** — set `ANTHROPIC_API_KEY` before running to get live Claude-generated hypotheses instead of the pre-written mock.
+## Benchmark Results
 
-### Full Pipeline
+*(Run `nexuslink benchmark --cycles 3` to generate)*
 
-```bash
-# Ingest your own papers
-uv run nexuslink ingest path/to/paper.pdf
-uv run nexuslink ingest arxiv:2301.00001
+## Citation
 
-# Build cross-domain links
-uv run nexuslink link --threshold 0.65
-
-# Generate hypotheses
-uv run nexuslink hypothesize --top-n 5
-
-# Full pipeline end-to-end
-uv run nexuslink run paper1.pdf arxiv:xxxx doi:10.xxxx
-
-# Run tests & lint
-uv run pytest tests/
-uv run ruff check .
+```bibtex
+@software{nexuslink2026,
+  author = {Your Name},
+  title = {NexusLink: Self-Refining Cross-Domain Hypothesis Engine},
+  year = {2026},
+  url = {https://github.com/yourusername/nexuslink}
+}
 ```
 
-## Why This Matters
+## License
 
-Science is siloed. A breakthrough in quantum physics may contain the exact mechanism that solves an open problem in synthetic biology — but no one reads across both literatures. The volume of published research (4+ million papers/year) makes manual cross-domain synthesis impossible.
-
-NexusLink treats cross-domain concept bridges as first-class objects: it embeds papers from different fields into a shared semantic space, detects non-obvious analogies between mechanisms across domains, and uses LLMs to generate structured, falsifiable hypotheses with full citation trails. The output is not a summary — it is a ranked list of experiments that no domain expert would have thought to propose alone.
-
-This is an unsolved problem. Existing tools (Semantic Scholar, ResearchRabbit, Elicit) do retrieval and summarization within a domain. None build cross-domain knowledge graphs and generate hypotheses from the bridges they find.
+MIT

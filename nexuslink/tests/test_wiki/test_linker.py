@@ -363,7 +363,7 @@ class TestKnowledgeGraph:
             count = await kg.export_for_obsidian()
 
         assert count == 3  # one file per concept
-        concepts_dir = tmp_path / "concepts"
+        concepts_dir = tmp_path / "02-concepts"
         assert concepts_dir.is_dir()
         files = list(concepts_dir.glob("*.md"))
         assert len(files) == 3

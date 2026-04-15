@@ -9,13 +9,14 @@ from pathlib import Path
 import yaml
 from loguru import logger
 
+from nexuslink.raw.extraction.entity_extractor import _is_valid_entity
 from nexuslink.raw.schemas.models import ExtractedEntity, RawDocument
 from nexuslink.wiki.graph.builder import KnowledgeGraph
 from nexuslink.wiki.linker.bridge_finder import BridgeFinder
 from nexuslink.wiki.linker.embedder import ConceptEmbedder
 
 _WIKI_DIR = Path(__file__).parent.parent          # wiki/
-_PAPERS_DIR = _WIKI_DIR / "papers"
+_PAPERS_DIR = _WIKI_DIR / "01-papers"
 _CACHE_PATH = _WIKI_DIR / ".cache" / "graph.gpickle"
 
 # Matches [[Some Link]] or [[Some Link|alias]]
@@ -154,7 +155,7 @@ async def run_linking(
 # ---------------------------------------------------------------------------
 
 async def _discover_paper_notes() -> list[Path]:
-    """Return all .md files under wiki/papers/, using obsidiantools for discovery.
+    """Return all .md files under wiki/01-papers/, using obsidiantools for discovery.
 
     Falls back to a direct glob if obsidiantools raises or returns nothing.
     """
@@ -167,7 +168,7 @@ async def _discover_paper_notes() -> list[Path]:
         index: dict = vault.md_file_index  # {note_name: relative_path}
         for name, rel_path in index.items():
             abs_path = _WIKI_DIR / rel_path
-            if "papers" in rel_path.parts and abs_path.suffix == ".md":
+            if "01-papers" in rel_path.parts and abs_path.suffix == ".md":
                 paths.append(abs_path)
 
         if paths:
@@ -230,7 +231,7 @@ def _extract_entities_from_body(body: str, source_doc_id: str) -> list[Extracted
         raw_type = m.group(2).strip().lower()
         entity_type = raw_type if raw_type in _VALID_TYPES else "phenomenon"
         context = m.group(3).strip() if m.group(3) else ""
-        if name not in seen:
+        if name not in seen and _is_valid_entity(name):
             seen.add(name)
             entities.append(ExtractedEntity(
                 name=name,
@@ -243,7 +244,7 @@ def _extract_entities_from_body(body: str, source_doc_id: str) -> list[Extracted
     if not entities:
         for m in _WIKILINK_RE.finditer(section_text):
             name = m.group(1).strip()
-            if name and name not in seen:
+            if name and name not in seen and _is_valid_entity(name):
                 seen.add(name)
                 entities.append(ExtractedEntity(
                     name=name,

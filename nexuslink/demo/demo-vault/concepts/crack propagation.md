@@ -7,6 +7,7 @@ tags: []
 
 ## Definition
 
+When a crack propagates through the network, DA adducts undergo retro-DA dissociation.
 
 ## Related Concepts
 
@@ -19,3 +20,11 @@ tags: []
 ## Cross-Domain Bridges
 
 <!-- none yet -->
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```

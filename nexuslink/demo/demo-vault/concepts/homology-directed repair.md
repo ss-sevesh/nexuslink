@@ -7,6 +7,7 @@ tags: []
 
 ## Definition
 
+When a repair template is provided, repair occurs via homology-directed repair.
 
 ## Related Concepts
 
@@ -25,3 +26,11 @@ tags: []
 - [[autonomous repair]] → enables
 - [[self-healing polymer]] → enables
 - [[Diels-Alder reaction]] → extends
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```

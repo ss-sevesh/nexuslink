@@ -7,6 +7,7 @@ tags: []
 
 ## Definition
 
+A guide RNA (gRNA) directs Cas9 to a specific genomic locus.
 
 ## Related Concepts
 
@@ -19,3 +20,11 @@ tags: []
 ## Cross-Domain Bridges
 
 <!-- none yet -->
+
+## All References (live)
+
+```dataview
+LIST
+FROM [[]]
+SORT file.folder ASC
+```

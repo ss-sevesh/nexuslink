@@ -28,7 +28,7 @@ The CRISPR-Cas9 system provides adaptive immunity in bacteria against bacterioph
 - [[homology-directed repair]]
 - [[bacteriophage]]
 
-<!-- Concept/method/material notes linked via [[wikilinks]] above -->
+<!-- entities linked as wikilinks above -->
 
 ## References
 
