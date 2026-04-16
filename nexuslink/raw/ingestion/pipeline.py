@@ -68,6 +68,10 @@ async def run_ingestion(source: str) -> dict:
         raise ValueError(f"Cannot determine source type for: {source!r}")
 
     entities = extract_entities(doc)
+    # For DOI/abstract-only papers, entity context sentences are often empty.
+    # Inject context from the abstract so embeddings carry semantic signal.
+    if source_type == "doi":
+        entities = _inject_abstract_context(entities, doc.abstract or "")
     note_path = await _write_wiki_note(doc, entities)
 
     summary = {
@@ -114,7 +118,55 @@ def _detect_source_type(source: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# DOI ingestion via CrossRef (returns metadata only; no full text)
+# Unpaywall — find open-access PDF URL for a DOI
+# ---------------------------------------------------------------------------
+
+async def _unpaywall_pdf_url(doi: str) -> str | None:
+    """Query Unpaywall for an open-access PDF URL.
+
+    Returns the best OA PDF URL or None if not found / request fails.
+    Unpaywall is free and requires only an email address in the query.
+    """
+    url = f"https://api.unpaywall.org/v2/{doi}?email=nexuslink@research.ai"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                return None
+        data = resp.json()
+        # Prefer the best_oa_location PDF URL
+        best = data.get("best_oa_location") or {}
+        pdf_url = best.get("url_for_pdf") or best.get("url")
+        if pdf_url and pdf_url.endswith(".pdf"):
+            return pdf_url
+        # Fall back to any oa_location with a PDF
+        for loc in data.get("oa_locations", []):
+            u = loc.get("url_for_pdf") or loc.get("url", "")
+            if u.endswith(".pdf"):
+                return u
+    except Exception as exc:
+        logger.debug("Unpaywall lookup failed for {}: {}", doi, exc)
+    return None
+
+
+async def _download_tmp_pdf(url: str) -> Path | None:
+    """Download a PDF from *url* to a temp file and return its path."""
+    import tempfile
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+        suffix = ".pdf"
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
+            f.write(resp.content)
+            return Path(f.name)
+    except Exception as exc:
+        logger.debug("PDF download failed from {}: {}", url, exc)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# DOI ingestion via CrossRef + Unpaywall fallback for full text
 # ---------------------------------------------------------------------------
 
 async def _ingest_doi(doi: str) -> RawDocument:
@@ -150,11 +202,40 @@ async def _ingest_doi(doi: str) -> RawDocument:
         authors=authors,
         doi=doi,
         abstract=abstract,
-        full_text=abstract,  # CrossRef doesn't give full text
+        full_text=abstract,  # will be upgraded to full text if Unpaywall finds a PDF
         source_path=f"doi:{doi}",
         year=year,
         domain_tags=crossref_subjects,
     )
+
+    # Try Unpaywall to get a full-text PDF — gives 10-50x more entities than abstract only.
+    pdf_url = await _unpaywall_pdf_url(doi)
+    if pdf_url:
+        logger.info("Unpaywall found OA PDF for {}: {}", doi, pdf_url)
+        tmp_pdf = await _download_tmp_pdf(pdf_url)
+        if tmp_pdf:
+            try:
+                full_doc = await ingest_pdf(tmp_pdf)
+                # Merge: keep CrossRef metadata, upgrade to full text + entities
+                doc = RawDocument(
+                    title=doc.title,
+                    authors=doc.authors,
+                    doi=doc.doi,
+                    abstract=doc.abstract,
+                    full_text=full_doc.full_text,
+                    source_path=f"doi:{doi}",
+                    year=doc.year,
+                    domain_tags=doc.domain_tags,
+                    arxiv_id=full_doc.arxiv_id,
+                )
+                logger.info("Upgraded DOI {} to full text ({} chars)", doi, len(doc.full_text))
+            except Exception as exc:
+                logger.warning("Full-text upgrade failed for {}: {}", doi, exc)
+            finally:
+                try:
+                    tmp_pdf.unlink()
+                except Exception:
+                    pass
 
     # CrossRef subject fields are often empty for science journals (Nature, Science, PRL).
     # Fall back to keyword-based domain classification so DOI papers are never orphaned
@@ -275,6 +356,35 @@ def _extract_methods_md(entities: list) -> str:
     if not method_entities:
         return ""
     return "\n".join(f"- [[{e.name}]]" for e in method_entities)
+
+
+def _inject_abstract_context(entities: list, abstract: str) -> list:
+    """Fill empty context_sentence fields by finding the abstract sentence
+    that best contains or relates to each entity name.
+
+    This ensures DOI-only papers (abstract text only) produce rich embeddings
+    instead of bare entity names, enabling cross-domain bridge detection.
+    """
+    if not abstract or not entities:
+        return entities
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", abstract) if len(s.strip()) > 20]
+    if not sentences:
+        return entities
+
+    result = []
+    for e in entities:
+        if e.context_sentence:
+            result.append(e)
+            continue
+        # Find the sentence most likely to contain the entity
+        name_lower = e.name.lower()
+        best = next(
+            (s for s in sentences if name_lower in s.lower()),
+            sentences[0],  # fall back to first abstract sentence
+        )
+        # Pydantic models are immutable — create a copy with the new field
+        result.append(e.model_copy(update={"context_sentence": best}))
+    return result
 
 
 def _trunc(s: str, n: int = 200) -> str:

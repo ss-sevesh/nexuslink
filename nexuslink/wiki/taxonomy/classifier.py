@@ -59,6 +59,64 @@ _DOMAIN_KEYWORDS: dict[str, list[str]] = {
     ],
 }
 
+# ---------------------------------------------------------------------------
+# Macro-domain normaliser — collapses ArXiv sub-categories into broad
+# scientific disciplines so cs.CL ↔ cs.LG doesn't count as "cross-domain".
+#
+# Uses longest-prefix matching, not a static dict, so any future ArXiv
+# category is handled automatically without code changes.  Unknown tags
+# are kept as-is — a genuinely new discipline becomes its own bucket.
+# ---------------------------------------------------------------------------
+
+# Ordered longest-first so specific prefixes (e.g. "cond-mat.mtrl-sci")
+# match before their shorter parents ("cond-mat").
+_MACRO_PREFIXES: list[tuple[str, str]] = sorted(
+    [
+        ("cond-mat.mtrl-sci", "materials_science"),
+        ("physics.chem-ph", "chemistry"),
+        ("cs.", "cs"), ("cs", "cs"),
+        ("stat.", "cs"), ("stat", "cs"),
+        ("eess.", "engineering"),
+        ("q-bio.", "biology"), ("q-bio", "biology"),
+        ("cond-mat.", "physics"), ("cond-mat", "physics"),
+        ("quant-ph", "physics"),
+        ("hep-", "physics"),
+        ("astro-ph", "physics"),
+        ("gr-qc", "physics"),
+        ("nlin", "physics"),
+        ("physics.", "physics"), ("physics", "physics"),
+        ("math-ph", "mathematics"),
+        ("math.", "mathematics"), ("math", "mathematics"),
+        ("econ.", "economics"),
+    ],
+    key=lambda x: len(x[0]),
+    reverse=True,
+)
+
+# Plain-English labels that don't follow ArXiv naming conventions
+_PLAIN_LABELS: dict[str, str] = {
+    "biology": "biology", "chemistry": "chemistry", "physics": "physics",
+    "mathematics": "mathematics", "engineering": "engineering",
+    "medicine": "medicine", "materials_science": "materials_science",
+    "cs": "cs", "ecology": "ecology", "economics": "economics",
+    "neuroscience": "neuroscience", "astronomy": "physics",
+}
+
+
+def macro_domain(tag: str) -> str:
+    """Collapse a fine-grained domain tag to a broad scientific discipline.
+
+    Uses longest-prefix matching so any future ArXiv sub-category maps
+    correctly without code changes.  Completely unknown tags are returned
+    lower-cased as their own discipline bucket — no information is lost.
+    """
+    t = tag.lower().strip()
+    for prefix, discipline in _MACRO_PREFIXES:
+        if t.startswith(prefix):
+            return discipline
+    return _PLAIN_LABELS.get(t, t)
+
+
 # ArXiv category prefixes → domain (longest prefix wins)
 _ARXIV_PREFIX_MAP: list[tuple[str, str]] = sorted(
     [

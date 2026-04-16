@@ -171,7 +171,29 @@ class ConceptEmbedder:
 # ------------------------------------------------------------------
 
 def _entity_text(entity: ExtractedEntity) -> str:
-    return f"{entity.name}: {entity.context_sentence}"
+    ctx = entity.context_sentence or _wikipedia_summary(entity.name)
+    return f"{entity.name}: {ctx}"
+
+
+def _wikipedia_summary(name: str) -> str:
+    """Fetch a one-sentence Wikipedia summary for *name* to enrich embeddings.
+
+    Used only when context_sentence is empty (e.g. DOI-only papers).
+    Returns empty string on any failure — never raises.
+    """
+    try:
+        import urllib.request, urllib.parse
+        query = urllib.parse.quote(name)
+        url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{query}"
+        req = urllib.request.Request(url, headers={"User-Agent": "NexusLink/0.1"})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = __import__("json").loads(resp.read())
+            extract = data.get("extract", "")
+            # Return first sentence only
+            first = extract.split(". ")[0].strip()
+            return first[:300] if first else ""
+    except Exception:
+        return ""
 
 
 def _sha(text: str) -> str:

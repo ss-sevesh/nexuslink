@@ -14,6 +14,7 @@ from nexuslink.raw.schemas.models import ExtractedEntity, RawDocument
 from nexuslink.wiki.graph.builder import KnowledgeGraph
 from nexuslink.wiki.linker.bridge_finder import BridgeFinder
 from nexuslink.wiki.linker.embedder import ConceptEmbedder
+from nexuslink.wiki.taxonomy.classifier import macro_domain
 
 _WIKI_DIR = Path(__file__).parent.parent          # wiki/
 _PAPERS_DIR = _WIKI_DIR / "01-papers"
@@ -105,7 +106,9 @@ async def run_linking(
         kg.add_paper(synthetic_doc, entities)
 
         for domain in domains:
-            entities_by_domain.setdefault(domain, []).extend(entities)
+            # Collapse cs.CL/cs.LG/stat.ML etc. → single "cs" bucket so they
+            # don't create spurious intra-CS "cross-domain" bridges.
+            entities_by_domain.setdefault(macro_domain(domain), []).extend(entities)
 
         papers_processed += 1
         logger.debug("Indexed {!r} ({} entities, domains={})", title, len(entities), domains)
