@@ -7,8 +7,8 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from loguru import logger
 
-from wiki.vault.reader import VaultReader
-from wiki.vault.models import CycleReport
+from nexuslink.wiki.vault.reader import VaultReader
+from nexuslink.wiki.vault.models import CycleReport
 
 
 @dataclass
@@ -140,7 +140,7 @@ class HypothesisBenchmark:
 
     def _save_report(self, report: BenchmarkReport):
         path = self.vault_path / ".cache" / "benchmark_results.json"
-        path.write_text(json.dumps(report.to_dict(), indent=2))
+        path.write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
 
     def _write_report_md(self, report: BenchmarkReport):
         reports_dir = self.vault_path / "04-reports"
@@ -189,7 +189,7 @@ improvement_pct: {report.improvement_pct:.1f}
 
 NexusLink's cyclical approach {"improved" if report.improvement_pct > 0 else "maintained"} hypothesis quality by {abs(report.improvement_pct):.1f}% over {len(report.cyclic_avg_scores)} cycles compared to one-shot generation, while simultaneously verifying evidence integrity — a capability no existing system provides.
 """
-        path.write_text(content)
+        path.write_text(content, encoding="utf-8")
         logger.info(f"Benchmark report written to {path}")
 
     def export_for_paper(self) -> str:

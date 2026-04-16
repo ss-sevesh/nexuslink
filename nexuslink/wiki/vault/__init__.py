@@ -1,6 +1,6 @@
 """wiki.vault — self-refining vault system for NexusLink."""
 
-from wiki.vault.models import (
+from nexuslink.wiki.vault.models import (
     PaperNote,
     ConceptNote,
     HypothesisNote,
@@ -9,11 +9,11 @@ from wiki.vault.models import (
     ConceptOverride,
     CycleReport,
 )
-from wiki.vault.reader import VaultReader
-from wiki.vault.healer import VaultHealer
-from wiki.vault.feedback import FeedbackLoop, FewShotSet, ScoringCalibration
-from wiki.vault.expander import AutonomousExpander, ExpansionReport
-from wiki.vault.integrity import EvidenceIntegrityChecker, HypothesisIntegrity
+from nexuslink.wiki.vault.reader import VaultReader
+from nexuslink.wiki.vault.healer import VaultHealer
+from nexuslink.wiki.vault.feedback import FeedbackLoop, FewShotSet, ScoringCalibration
+from nexuslink.wiki.vault.expander import AutonomousExpander, ExpansionReport
+from nexuslink.wiki.vault.integrity import EvidenceIntegrityChecker, HypothesisIntegrity
 
 __all__ = [
     "PaperNote",

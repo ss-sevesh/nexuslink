@@ -230,15 +230,17 @@ def _render_markdown_report(
     stats: dict,
 ) -> str:
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    exec_summary_str = exec_summary if isinstance(exec_summary, str) else str(exec_summary or "")
+    narrative_str = narrative if isinstance(narrative, str) else str(narrative or "")
     lines: list[str] = [
         f"# NexusLink Research Report\n",
         f"*Generated: {timestamp}*\n",
         "---\n",
         "## Executive Summary\n",
-        exec_summary or "_Executive summary not generated._",
+        exec_summary_str or "_Executive summary not generated._",
         "\n---\n",
         "## Cross-Domain Analysis Map\n",
-        narrative or "_Narrative not generated._",
+        narrative_str or "_Narrative not generated._",
         "\n---\n",
         "## Ranked Hypotheses\n",
     ]
@@ -260,11 +262,11 @@ def _render_markdown_report(
                 lines.append(f"- {bridge_key}")
         lines.append("\n**Suggested experiments:**")
         for i, exp in enumerate(h.suggested_experiments, 1):
-            lines.append(f"{i}. {exp}")
+            lines.append(f"{i}. {exp if isinstance(exp, str) else str(exp)}")
         if h.weaknesses:
             lines.append("\n**Known weaknesses:**")
             for w in h.weaknesses:
-                lines.append(f"- {w}")
+                lines.append(f"- {w if isinstance(w, str) else str(w)}")
         lines.append("")
 
     lines += [
