@@ -24,6 +24,12 @@ nexuslink/wiki/.cache/
 nexuslink/raw/store/chroma/
 nexuslink/raw/store/*.db
 
+# Vault generated content (built by pipeline — not source code)
+nexuslink/wiki/01-papers/
+nexuslink/wiki/02-concepts/
+nexuslink/wiki/04-reports/
+nexuslink/wiki/.obsidian/plugins/
+
 # Large binary inputs (PDFs ingested by users — not source-controlled)
 *.pdf
 
