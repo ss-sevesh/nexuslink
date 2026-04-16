@@ -36,6 +36,9 @@ nexuslink/wiki/.obsidian/plugins/
 # Claude Code project state (conversations, memory — not source code)
 .claude/
 
+# MCP server config — contains machine-specific absolute paths
+.mcp.json
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
